@@ -9,8 +9,24 @@ https://docs.djangoproject.com/en/5.1/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
-
+import os
 from pathlib import Path
+from dotenv import load_dotenv
+from datetime import timedelta
+
+load_dotenv()
+
+def get_env_list(key):
+    """
+        function to get lists from env
+    """
+    env_list = list(key.split(",")) if key else []
+    return env_list
+
+def get_env_bool(key):
+    if key == "True":
+        return True
+    return False
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,14 +36,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-pjlaljum(&-ao(#%sn_!jbi=b74$o%81o1$9kkh=nn2%(^2y8d'
+SECRET_KEY = os.getenv("SECRET_KEY")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = get_env_bool(os.getenv("DEBUG"))
 
-ALLOWED_HOSTS = []
-
-
+ALLOWED_HOSTS = get_env_list(os.getenv("ALLOWED_HOSTS"))
 # Application definition
 
 INSTALLED_APPS = [
@@ -37,9 +51,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'rest_framework',
+    'corsheaders',
+    'api'
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -50,6 +68,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'trip.urls'
+AUTH_USER_MODEL = 'api.User'
 
 TEMPLATES = [
     {
@@ -77,6 +96,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+        'OPTIONS': {
+            'timeout': 20,
+        },
+        'ATOMIC_REQUESTS': True,
     }
 }
 
@@ -121,3 +144,31 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# REST Framework settings
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
+
+SIMPLE_JWT = {
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=1),
+    'ROTATE_REFRESH_TOKENS': False,
+    'BLACKLIST_AFTER_ROTATION': False,
+    'UPDATE_LAST_LOGIN': False,
+}
+
+CORS_ALLOWED_ORIGINS = get_env_list(os.getenv("CORS_ALLOWED_ORIGINS"))
+CORS_ORIGIN_ALLOW_ALL = get_env_bool(os.getenv('CORS_ORIGIN_ALLOW_ALL'))
+CORS_ALLOW_CREDENTIALS = get_env_bool(os.getenv('CORS_ORIGIN_ALLOW_ALL'))
+ORS_URL=os.getenv('ORS_URL', "")
+ORS_API_KEY=os.getenv('ORS_API_KEY', "")
+BLANK_LOG_TEMPLATE_PATH=os.getenv("BLANK_LOG_TEMPLATE_PATH")
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
