@@ -5,11 +5,11 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.authtoken.models import Token
 from api.tasks import calculate_trip
+from api.helpers.trip_planner import calculate_trip as calculate_trip_data
 from .models import Trip
 from django.contrib.auth import authenticate
 from .serializers import UserSerializer, TripSerializer
 import requests
-from django_ratelimit.decorators import ratelimit
 import base64
 import io
 from PIL import Image
@@ -137,10 +137,19 @@ class TripPlannerView(APIView):
 class RouteDataView(APIView):
     permission_classes = [IsAuthenticated]
     
-    def post(self, request):
+    def get(self, request):
         try:
-            trip_id = request.data.get("trip_id")
+            trip_id = request.query_params.get("trip_id")
+            update = request.query_params.get("update")
+
+            # if update:
+            #     trip = Trip.objects.get(id=trip_id)
+            # else:
+            #     trip = Trip.objects.get(id=trip_id, route_data__isnull=True, log_sheets__isnull=True)
+
             trip = Trip.objects.get(id=trip_id)
+            
+
 
             current_location = trip.current_location
             pickup_location = trip.pickup_location
@@ -183,6 +192,8 @@ class RouteDataView(APIView):
                 [pickup_coords.longitude, pickup_coords.latitude],
                 [dropoff_coords.longitude, dropoff_coords.latitude]
             ]
+
+
             ors_url = settings.ORS_URL
             headers = {"Authorization": ors_api_key}
             body = {"coordinates": coords}
@@ -201,8 +212,7 @@ class RouteDataView(APIView):
 
             logger.info("Calculating trip stops")
             try:
-                trip_data = calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, pickup_coords, current_coords, dropoff_coords)
-                print(f"ROUTE DATA {trip_data}")
+                trip_data = calculate_trip_data(trip_id, distance, duration, current_cycle_hours, geometry, pickup_coords, current_coords, dropoff_coords)
                 logger.info("Trip stops calculated successfully")
             except Exception as e:
                 logger.error(f"calculate_trip failed: {str(e)}")
