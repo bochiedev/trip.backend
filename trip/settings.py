@@ -174,6 +174,6 @@ CORS_ALLOW_CREDENTIALS = get_env_bool(os.getenv('CORS_ORIGIN_ALLOW_ALL'))
 ORS_URL=os.getenv('ORS_URL', "")
 ORS_API_KEY=os.getenv('ORS_API_KEY', "")
 BLANK_LOG_TEMPLATE_PATH=os.getenv("BLANK_LOG_TEMPLATE_PATH")
-CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', "redis://localhost:6379/0")
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
