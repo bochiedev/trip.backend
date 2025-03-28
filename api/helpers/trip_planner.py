@@ -13,7 +13,7 @@ from hashlib import md5
 from django.core.cache import cache
 import json
 import logging
-from scipy.spatial import KDTree
+from sklearn.neighbors import KDTree
 import numpy as np
 
 

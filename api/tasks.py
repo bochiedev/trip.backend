@@ -2,7 +2,7 @@
 from celery import shared_task
 from api.helpers.trip_planner import get_coords_at_distance, get_overpass_data_sync, haversine,generate_eld_logs, preprocess_geometry
 from api.models import Trip
-from scipy.spatial import KDTree
+from sklearn.neighbors import KDTree
 
 
 
