@@ -1,15 +1,13 @@
 # myapp/tasks.py
 from celery import shared_task
-from api.helpers.trip_planner import get_coords_at_distance, get_overpass_data_sync, haversine,generate_eld_logs, preprocess_geometry
+from api.helpers.trip_planner import find_nearest_midpoint, get_coords_at_distance, get_overpass_data_sync, haversine,generate_eld_logs, preprocess_geometry
 from api.models import Trip
-from sklearn.neighbors import KDTree
 
 
 
 @shared_task
 def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, pickup_coords, start_coords, end_coords):
     distance_miles = distance * 0.621371
-    
     speed_mph = 60
     driving_hours = distance_miles / speed_mph
     total_on_duty_hours = driving_hours
@@ -41,12 +39,10 @@ def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, p
     pois = fuel_stations + rest_stops
 
     midpoints, segment_distances = preprocess_geometry(geometry)
-    tree = KDTree(midpoints)
 
     for poi in pois:
         poi_lat, poi_lon = poi['lat'], poi['lon']
-        
-        _, nearest_idx = tree.query([poi_lon, poi_lat])  
+        nearest_idx = find_nearest_midpoint(midpoints, poi_lon, poi_lat)
         poi['distance'] = segment_distances[nearest_idx]
 
     fuel_stations.sort(key=lambda x: x['distance'])
@@ -54,8 +50,8 @@ def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, p
 
     # Step 2: Check if start and pickup points are the same
     is_start_pickup_same = (
-        abs(start_coords.latitude - pickup_coords.latitude) < 0.0001 and
-        abs(start_coords.longitude - pickup_coords.longitude) < 0.0001
+        abs(start_coords['latitude'] - pickup_coords['latitude']) < 0.0001 and
+        abs(start_coords['longitude'] - pickup_coords['longitude']) < 0.0001
     )
 
     # Step 3: Add the start point (and pickup point if they are the same)
@@ -66,8 +62,8 @@ def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, p
             "time": time_in_day,
             "duty_status": "on_duty_not_driving",
             "duration": 1,  # Keep the 1-hour duration for pickup activities
-            "lat": start_coords.latitude,
-            "lon": start_coords.longitude,
+            "lat": start_coords['latitude'],
+            "lon": start_coords['longitude'],
             "miles_traveled": current_miles
         })
         total_on_duty_hours += 1
@@ -80,15 +76,15 @@ def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, p
             "time": time_in_day,
             "duty_status": "on_duty_not_driving",
             "duration": 0,
-            "lat": start_coords.latitude,
-            "lon": start_coords.longitude,
+            "lat": start_coords['latitude'],
+            "lon": start_coords['longitude'],
             "miles_traveled": current_miles
         })
 
         # Calculate distance to pickup and add pickup stop
         pickup_index = None
         for i, coord in enumerate(geometry):
-            if abs(coord[0] - pickup_coords.longitude) < 0.0001 and abs(coord[1] - pickup_coords.latitude) < 0.0001:
+            if abs(coord[0] - pickup_coords['longitude']) < 0.0001 and abs(coord[1] - pickup_coords['latitude']) < 0.0001:
                 pickup_index = i
                 break
         if pickup_index is None:
@@ -106,8 +102,8 @@ def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, p
             "time": time_in_day,
             "duty_status": "on_duty_not_driving",
             "duration": 1,
-            "lat": pickup_coords.latitude,
-            "lon": pickup_coords.longitude,
+            "lat": pickup_coords['latitude'],
+            "lon": pickup_coords['longitude'],
             "miles_traveled": current_miles
         })
         total_on_duty_hours += 1
@@ -255,8 +251,8 @@ def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, p
         "time": time_in_day,
         "duty_status": "on_duty_not_driving",
         "duration": 1,
-        "lat": end_coords.latitude,
-        "lon": end_coords.longitude,
+        "lat": end_coords['latitude'],
+        "lon": end_coords['longitude'],
         "miles_traveled": current_miles
     })
     total_on_duty_hours += 1

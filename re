@@ -28,6 +28,7 @@ multidict==6.2.0
 numpy==2.2.4
 packaging==24.2
 pillow==11.1.0
+pip-check==2.9
 prompt_toolkit==3.0.50
 propcache==0.3.1
 psycopg2-binary==2.9.10

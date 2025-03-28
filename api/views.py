@@ -212,7 +212,7 @@ class RouteDataView(APIView):
 
             logger.info("Calculating trip stops")
             try:
-                trip_data = calculate_trip_data(trip_id, distance, duration, current_cycle_hours, geometry, pickup_coords, current_coords, dropoff_coords)
+                calculate_trip_data(trip_id, distance, duration, current_cycle_hours, geometry, pickup_coords, current_coords, dropoff_coords)
                 logger.info("Trip stops calculated successfully")
             except Exception as e:
                 logger.error(f"calculate_trip failed: {str(e)}")

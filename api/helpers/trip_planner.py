@@ -13,7 +13,6 @@ from hashlib import md5
 from django.core.cache import cache
 import json
 import logging
-from sklearn.neighbors import KDTree
 import numpy as np
 
 
@@ -139,6 +138,13 @@ def preprocess_geometry(geometry):
     return np.array(midpoints), segment_distances
 
 
+def find_nearest_midpoint(midpoints, poi_lon, poi_lat):
+    distances = np.sqrt((midpoints[:, 0] - poi_lon)**2 + (midpoints[:, 1] - poi_lat)**2)
+    nearest_idx = np.argmin(distances)
+    return nearest_idx
+
+
+
 def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, pickup_coords, start_coords, end_coords):
     distance_miles = distance * 0.621371
     
@@ -174,12 +180,10 @@ def calculate_trip(trip_id, distance, duration, current_cycle_hours, geometry, p
     pois = fuel_stations + rest_stops
 
     midpoints, segment_distances = preprocess_geometry(geometry)
-    tree = KDTree(midpoints)
 
     for poi in pois:
         poi_lat, poi_lon = poi['lat'], poi['lon']
-        
-        _, nearest_idx = tree.query([poi_lon, poi_lat])  
+        nearest_idx = find_nearest_midpoint(midpoints, poi_lon, poi_lat)
         poi['distance'] = segment_distances[nearest_idx]
 
     fuel_stations.sort(key=lambda x: x['distance'])
