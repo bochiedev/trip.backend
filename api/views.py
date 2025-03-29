@@ -104,6 +104,7 @@ class TripPlannerView(APIView):
             [pickup_coords['longitude'], pickup_coords['latitude']],
             [dropoff_coords['longitude'], dropoff_coords['latitude']]
         ]
+        
 
         headers = {"Authorization": self.ors_api_key}
         body = {"coordinates": coords}

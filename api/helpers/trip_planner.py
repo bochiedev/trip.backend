@@ -59,52 +59,24 @@ async def fetch_overpass_data(session, query, cache_timeout=86400):
         logger.error(f"Overpass API request failed: {e}")
         return {"elements": []}
 
-async def get_trailer_changes_data(bbox, session):
-    overpass_query_trailer = f"""
-    [out:json][timeout:30];
-    node["amenity"="truck_stop"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-    out skel qt;
-    """
-    data = await fetch_overpass_data(session, overpass_query_trailer)
-    return [
-        {
-            "lat": element['lat'],
-            "lon": element['lon'],
-            "location": element.get('tags', {}).get('name', 'Truck Stop'),
-            "distance": 0.0
-        }
-        for element in data.get('elements', [])
-    ]
-
-async def get_inspection_stops_data(bbox, session):
-    overpass_query_inspection = f"""
-    [out:json][timeout:30];
-    node["highway"="weigh_station"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-    out skel qt;
-    """
-    data = await fetch_overpass_data(session, overpass_query_inspection)
-    return [
-        {
-            "lat": element['lat'],
-            "lon": element['lon'],
-            "location": element.get('tags', {}).get('name', 'Weigh Station'),
-            "distance": 0.0
-        }
-        for element in data.get('elements', [])
-    ]
-
-
 async def get_fuel_stations_data(bbox, session):
     overpass_query_fuel = f"""
     [out:json][timeout:30];
-    node["amenity"="fuel"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-    out skel qt;
+    (
+        node["amenity"="fuel"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        way["amenity"="fuel"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        node["highway"="services"]["fuel"="yes"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        way["highway"="services"]["fuel"="yes"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+    );
+    out center qt;
     """
+
     data = await fetch_overpass_data(session, overpass_query_fuel)
+
     return [
         {
-            "lat": element['lat'],
-            "lon": element['lon'],
+            "lat": element.get('center', {}).get('lat') if 'center' in element else element['lat'],
+            "lon": element.get('center', {}).get('lon') if 'center' in element else element['lon'],
             "location": element.get('tags', {}).get('name', 'Fuel Station'),
             "distance": 0.0
         }
@@ -114,41 +86,122 @@ async def get_fuel_stations_data(bbox, session):
 async def get_rest_stops_data(bbox, session):
     overpass_query_rest = f"""
     [out:json][timeout:30];
-    node["highway"="rest_area"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
-    out skel qt;
+    (
+        node["highway"="rest_area"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        way["highway"="rest_area"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        node["amenity"="rest_area"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        way["amenity"="rest_area"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        node["highway"="services"]["rest_area"="yes"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        way["highway"="services"]["rest_area"="yes"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+    );
+    out center qt;
     """
+
     data = await fetch_overpass_data(session, overpass_query_rest)
     return [
         {
-            "lat": element['lat'],
-            "lon": element['lon'],
-            "location": element.get('tags', {}).get('name', 'Rest Area'),
+            "lat": element.get('center', {}).get('lat') if 'center' in element else element['lat'],
+            "lon": element.get('center', {}).get('lon') if 'center' in element else element['lon'],
+            "location": element.get('tags', {}).get('name', 'Rest Stop'),
             "distance": 0.0
         }
         for element in data.get('elements', [])
     ]
 
+async def get_trailer_changes_data(bbox, session):
+    overpass_query_trailer = f"""
+    [out:json][timeout:30];
+    (
+        node["amenity"="truck_stop"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        way["amenity"="truck_stop"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        node["highway"="services"]["truck_stop"="yes"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        way["highway"="services"]["truck_stop"="yes"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+    );
+    out center qt;
+    """
+
+    data = await fetch_overpass_data(session, overpass_query_trailer)
+    return [
+        {
+            "lat": element.get('center', {}).get('lat') if 'center' in element else element['lat'],
+            "lon": element.get('center', {}).get('lon') if 'center' in element else element['lon'],
+            "location": element.get('tags', {}).get('name', 'Truck Stop'),
+            "distance": 0.0
+        }
+        for element in data.get('elements', [])
+    ]
+
+async def get_inspection_stops_data(bbox, session):
+    overpass_query_inspection = f"""
+    [out:json][timeout:30];
+    (
+        node["highway"="weigh_station"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+        way["highway"="weigh_station"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});
+    );
+    out center qt;
+    """
+
+    data = await fetch_overpass_data(session, overpass_query_inspection)
+    return [
+        {
+            "lat": element.get('center', {}).get('lat') if 'center' in element else element['lat'],
+            "lon": element.get('center', {}).get('lon') if 'center' in element else element['lon'],
+            "location": element.get('tags', {}).get('name', 'Weigh Station'),
+            "distance": 0.0
+        }
+        for element in data.get('elements', [])
+    ]
 
 async def get_overpass_data(geometry):
-    lats = [coord[1] for coord in geometry]
-    lons = [coord[0] for coord in geometry]
-    bbox = (min(lats), min(lons), max(lats), max(lons)) 
+    # Segment the route into smaller sections (e.g., every 500 miles)
+    segment_length = 500 * 1.60934 
+    segments = []
+    current_segment = []
+    current_distance = 0
 
+    for i in range(1, len(geometry)):
+        lon1, lat1 = geometry[i-1]
+        lon2, lat2 = geometry[i]
+        distance_km = haversine(lon1, lat1, lon2, lat2)
+        current_distance += distance_km
+        current_segment.append(geometry[i-1])
+
+        if current_distance >= segment_length or i == len(geometry) - 1:
+            current_segment.append(geometry[i])
+            segments.append(current_segment)
+            current_segment = [geometry[i]]
+            current_distance = 0
+
+    # Fetch stops for each segment
+    all_fuel_stations = []
+    all_rest_stops = []
+    all_trailer_changes = []
+    all_inspection_stops = []
     async with aiohttp.ClientSession() as session:
-        fuel_task = get_fuel_stations_data(bbox, session)
-        rest_task = get_rest_stops_data(bbox, session)
-        trailer_task = get_trailer_changes_data(bbox, session)
-        inspection_task = get_inspection_stops_data(bbox, session)
+        for segment in segments:
+            lats = [coord[1] for coord in segment]
+            lons = [coord[0] for coord in segment]
+            bbox = (min(lats), min(lons), max(lats), max(lons))
 
-        fuel_stations, rest_stops, trailer_changes, inspection_stops = await asyncio.gather(
-            fuel_task, rest_task, trailer_task, inspection_task
-        )
+            fuel_task = get_fuel_stations_data(bbox, session)
+            rest_task = get_rest_stops_data(bbox, session)
+            trailer_task = get_trailer_changes_data(bbox, session)
+            inspection_task = get_inspection_stops_data(bbox, session)
+
+            fuel_stations, rest_stops, trailer_changes, inspection_stops = await asyncio.gather(
+                fuel_task, rest_task, trailer_task, inspection_task
+            )
+
+            all_fuel_stations.extend(fuel_stations)
+            all_rest_stops.extend(rest_stops)
+            all_trailer_changes.extend(trailer_changes)
+            all_inspection_stops.extend(inspection_stops)
 
     return {
-        "fuel_stations": fuel_stations,
-        "rest_stops": rest_stops,
-        "trailer_changes": trailer_changes,
-        "inspection_stops": inspection_stops
+        "fuel_stations": all_fuel_stations,
+        "rest_stops": all_rest_stops,
+        "trailer_changes": all_trailer_changes,
+        "inspection_stops": all_inspection_stops
     }
 
 def get_overpass_data_sync(geometry):
