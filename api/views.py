@@ -142,13 +142,10 @@ class RouteDataView(APIView):
             trip_id = request.query_params.get("trip_id")
             update = request.query_params.get("update")
 
-            # if update:
-            #     trip = Trip.objects.get(id=trip_id)
-            # else:
-            #     trip = Trip.objects.get(id=trip_id, route_data__isnull=True, log_sheets__isnull=True)
-
-            trip = Trip.objects.get(id=trip_id)
-            
+            if update:
+                trip = Trip.objects.get(id=trip_id)
+            else:
+                trip = Trip.objects.get(id=trip_id, route_data__isnull=True, log_sheets__isnull=True)
 
 
             current_location = trip.current_location
